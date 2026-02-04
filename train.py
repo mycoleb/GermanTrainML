@@ -1,22 +1,34 @@
-from __future__ import annotations
+from utils import to_float32
+
+# from __future__ import annotations
+
+from sklearn.linear_model import SGDClassifier, SGDRegressor
+from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
+
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import FunctionTransformer
 
 import sys
 from pathlib import Path
 import pandas as pd
 from joblib import dump
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import FunctionTransformer
 
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import roc_auc_score, average_precision_score, mean_absolute_error
-from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
+from sklearn.linear_model import SGDClassifier, SGDRegressor
 
 DATA_PATH = Path("data/processed/dataset.parquet")
 MODEL_DIR = Path("models")
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
+
+CAT_COLS_EXPECTED = ["station_id", "category", "train_id"]
+NUM_COLS_EXPECTED = ["hour", "dow", "month", "is_weekend", "station_delay_mean_20"]
+def to_float32(x):
+    # Works for numpy arrays / scipy sparse / pandas
+    return x.astype("float32")
 
 def main() -> int:
     if not DATA_PATH.exists():
@@ -27,29 +39,43 @@ def main() -> int:
 
     # Targets
     y_cls = df["is_delayed_5"].astype(int)
-    y_reg = df["delay_minutes"].astype(float)
+    y_reg = pd.to_numeric(df["delay_minutes"], errors="coerce").astype("float32")
 
-    # Features (drop raw targets + timestamp)
-    drop_cols = {"is_delayed_5", "delay_minutes", "scheduled_time"}
-    feature_cols = [c for c in df.columns if c not in drop_cols]
+    # Build X
+    feature_cols = [c for c in df.columns if c not in ("is_delayed_5", "delay_minutes", "scheduled_time")]
     X = df[feature_cols].copy()
 
-    # Identify categorical vs numeric
-    cat_cols = [c for c in X.columns if X[c].dtype == "string" or X[c].dtype == "object"]
-    num_cols = [c for c in X.columns if c not in cat_cols]
+    # --- HARD FIX: remove pandas nullable dtypes + pandas.NA BEFORE sklearn sees it ---
+
+    # Categorical -> plain python strings (object) and fill missing
+    # Categorical cleanup
+    for c in CAT_COLS_EXPECTED:
+        if c in X.columns:
+            X[c] = (
+                X[c].astype("string")
+                    .fillna("UNKNOWN")
+                    .replace({"": "UNKNOWN"})
+                    .astype(str)
+            )
+
+    # Numeric cleanup
+    for c in NUM_COLS_EXPECTED:
+        if c in X.columns:
+            X[c] = pd.to_numeric(X[c], errors="coerce").astype("float32").fillna(-1.0)
+
+    # Explicit columns
+    cat_cols = [c for c in CAT_COLS_EXPECTED if c in X.columns]
+    num_cols = [c for c in NUM_COLS_EXPECTED if c in X.columns]
 
     print("Features:")
     print("  categorical:", cat_cols)
     print("  numeric    :", num_cols)
 
-    # Numeric pipeline: replace NA -> -1, then cast to float32
-    # Numeric pipeline: replace NA -> -1, then cast to float32
     num_pipe = Pipeline([
         ("imputer", SimpleImputer(strategy="constant", fill_value=-1)),
-        ("to_float", FunctionTransformer(lambda x: x.astype("float32"),
-                                        feature_names_out="one-to-one")),
+        ("to_float", FunctionTransformer(to_float32, feature_names_out="one-to-one")),
     ])
-
+    
     pre = ColumnTransformer(
         transformers=[
             ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=True), cat_cols),
@@ -59,16 +85,33 @@ def main() -> int:
     )
 
 
+    
 
-    # Keep training fast; you can raise max_iter later
-    cls = HistGradientBoostingClassifier(max_depth=6, learning_rate=0.08, max_iter=200)
-    reg = HistGradientBoostingRegressor(max_depth=6, learning_rate=0.08, max_iter=200)
+    # Sparse-friendly + scales to millions of rows
+    cls = SGDClassifier(
+        loss="log_loss",
+        alpha=1e-5,
+        max_iter=30,
+        tol=1e-3,
+        early_stopping=True,
+        n_iter_no_change=3,
+        random_state=42,
+    )
+
+    reg = SGDRegressor(
+        loss="squared_error",
+        alpha=1e-5,
+        max_iter=30,
+        tol=1e-3,
+        early_stopping=True,
+        n_iter_no_change=3,
+        random_state=42,
+    )
 
     cls_pipe = Pipeline([("pre", pre), ("model", cls)])
     reg_pipe = Pipeline([("pre", pre), ("model", reg)])
 
-    # Train/test split
-    # Stratify classification target so delayed/not-delayed ratio stays similar
+    # Split
     X_train, X_test, ycls_train, ycls_test, yreg_train, yreg_test = train_test_split(
         X, y_cls, y_reg, test_size=0.2, random_state=42, stratify=y_cls
     )
@@ -79,7 +122,6 @@ def main() -> int:
     print("Training regressor...")
     reg_pipe.fit(X_train, yreg_train)
 
-    # Evaluate
     print("Evaluating...")
     proba = cls_pipe.predict_proba(X_test)[:, 1]
     auc = roc_auc_score(ycls_test, proba)

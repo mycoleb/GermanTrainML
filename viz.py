@@ -8,6 +8,27 @@ import matplotlib.pyplot as plt
 import numpy as np
 from joblib import load
 
+
+
+STATIONS_PATH = Path("data/static/db_stations.csv")
+
+def load_station_lookup() -> pd.DataFrame:
+    if not STATIONS_PATH.exists():
+        raise FileNotFoundError(
+            "Missing station lookup file.\n"
+            "Place DB station metadata CSV at data/static/db_stations.csv"
+        )
+
+    df = pd.read_csv(STATIONS_PATH, dtype=str)
+
+    # Normalize column names
+    df.columns = [c.lower() for c in df.columns]
+
+    if "eva" not in df.columns or "name" not in df.columns:
+        raise ValueError("Station file must contain 'eva' and 'name' columns")
+
+    return df[["eva", "name"]].drop_duplicates()
+
 DATA_PATH = Path("data/processed/dataset.parquet")
 CLS_MODEL_PATH = Path("models/delay_classifier.joblib")
 REG_MODEL_PATH = Path("models/delay_regressor.joblib")
@@ -76,21 +97,36 @@ def plot_delay_heatmap(df: pd.DataFrame):
 
 
 def plot_worst_stations(df: pd.DataFrame, top_n: int = 15):
-    top = (
+    stations = load_station_lookup()
+
+    worst = (
         df.groupby("station_id")["delay_minutes"]
           .mean()
-          .sort_values(ascending=False)
+          .reset_index()
+          .sort_values("delay_minutes", ascending=False)
           .head(top_n)
     )
 
+    worst = worst.merge(
+        stations,
+        left_on="station_id",
+        right_on="eva",
+        how="left"
+    )
+
+    worst["label"] = worst.apply(
+        lambda r: f"{r['name']} ({r['station_id']})"
+        if pd.notna(r["name"]) else r["station_id"],
+        axis=1
+    )
+
     plt.figure(figsize=(10, 6))
-    top.plot(kind="barh")
+    plt.barh(worst["label"], worst["delay_minutes"])
     plt.xlabel("Average delay (minutes)")
     plt.title(f"Worst Stations by Average Delay (Top {top_n})")
     plt.gca().invert_yaxis()
     plt.tight_layout()
     plt.show()
-
 
 def plot_pred_vs_actual(df: pd.DataFrame, max_minutes: int = 20):
     if not REG_MODEL_PATH.exists():

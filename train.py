@@ -26,9 +26,7 @@ MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 CAT_COLS_EXPECTED = ["station_id", "category", "train_id"]
 NUM_COLS_EXPECTED = ["hour", "dow", "month", "is_weekend", "station_delay_mean_20"]
-def to_float32(x):
-    # Works for numpy arrays / scipy sparse / pandas
-    return x.astype("float32")
+
 
 def main() -> int:
     if not DATA_PATH.exists():
@@ -139,6 +137,14 @@ def main() -> int:
     dump(reg_pipe, MODEL_DIR / "delay_regressor.joblib")
     print(f"\nSaved models to: {MODEL_DIR.resolve()}")
     return 0
+NUM_COLS_EXPECTED = [
+    "hour",
+    "dow",
+    "month",
+    "is_weekend",
+    "station_delay_mean_20",
+    "station_delay_last_60min",   # ← NEW
+]
 
 if __name__ == "__main__":
     sys.exit(main())

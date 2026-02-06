@@ -67,6 +67,28 @@ def main() -> int:
 
     if df.empty:
         raise ValueError("Input file loaded but contains 0 rows.")
+    # Sort only after we know what the time column is
+    time_col = None
+    for c in ["scheduled_time", "planned_time", "sched_time", "time", "timestamp", "datetime"]:
+        if c in df.columns:
+            time_col = c
+            break
+
+    if time_col is None:
+        # Print columns to help debugging
+        print("Available columns:", list(df.columns))
+        raise KeyError("No time column found in raw data (expected something like scheduled_time/planned_time/time).")
+
+    df = df.sort_values(time_col)
+
+
+#     df["station_delay_last_60min"] = (
+#     df.groupby("station_id")
+#       .rolling("60min", on="scheduled_time")["delay_minutes"]
+#       .mean()
+#       .reset_index(level=0, drop=True)
+#       .astype("float32")
+# )
 
     cols = list(df.columns)
 
@@ -123,8 +145,12 @@ def main() -> int:
     df["scheduled_time"] = df[sched_time_col]
 
     # Clean
-    df = df.dropna(subset=["station_id", "delay_minutes"]).copy()
-
+    df = df.dropna(subset=["station_id", "delay_minutes", "scheduled_time"]).copy()
+    
+    #  Ensure a unique index to prevent reindexing errors
+    df = df.reset_index(drop=True)
+    
+    print(f"Rows with valid scheduled_time: {df['scheduled_time'].notna().sum()}")
     # If scheduled_time is present, we can add time features
     if pd.api.types.is_datetime64_any_dtype(df["scheduled_time"]):
         dt = df["scheduled_time"].dt
@@ -140,25 +166,51 @@ def main() -> int:
         df["is_weekend"] = pd.Series([pd.NA] * len(df), dtype="Int8")
 
     # Rolling mean delay per station (sorted by scheduled_time when available)
+    # Rolling mean delay per station (sorted by scheduled_time when available)
     sort_cols = ["station_id"]
     if pd.api.types.is_datetime64_any_dtype(df["scheduled_time"]):
         sort_cols.append("scheduled_time")
-    df = df.sort_values(sort_cols)
 
-    df["station_delay_mean_20"] = (
-        df.groupby("station_id")["delay_minutes"]
-          .rolling(window=20, min_periods=1)
-          .mean()
-          .reset_index(level=0, drop=True)
-          .astype("float32")
-    )
+        # Sort AND reset index so assignments never try to reindex on duplicate labels
+        df = df.sort_values(sort_cols).reset_index(drop=True)
+
+        s20 = (
+            df.groupby("station_id")["delay_minutes"]
+            .rolling(window=20, min_periods=1)
+            .mean()
+            .reset_index(level=0, drop=True)
+        )
+        df["station_delay_mean_20"] = pd.to_numeric(s20, errors="coerce").to_numpy(dtype="float32")
+
+        s60 = (
+            df.groupby("station_id")
+            .rolling("60min", on="scheduled_time")["delay_minutes"]
+            .mean()
+            .reset_index(level=0, drop=True)
+        )
+        df["station_delay_last_60min"] = pd.to_numeric(s60, errors="coerce").to_numpy(dtype="float32")
+    else:
+        df["station_delay_mean_20"] = np.nan
+        df["station_delay_last_60min"] = np.nan
+
 
     # Targets
     df["is_delayed_5"] = (df["delay_minutes"] >= 5).astype("int8")
 
     # Optional categorical fields
-    keep = ["station_id", "scheduled_time", "hour", "dow", "month", "is_weekend", "station_delay_mean_20",
-            "delay_minutes", "is_delayed_5"]
+    keep = [
+    "station_id",
+    "scheduled_time",
+    "hour",
+    "dow",
+    "month",
+    "is_weekend",
+    "station_delay_mean_20",
+    "station_delay_last_60min",  # ← ADD THIS
+    "delay_minutes",
+    "is_delayed_5",
+]
+
 
     if train_id_col is not None:
         df["train_id"] = df[train_id_col].astype("string")

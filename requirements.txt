@@ -6,3 +6,4 @@ requests>=2.31
 joblib>=1.3
 tqdm>=4.66
 python-dateutil>=2.9
+folium

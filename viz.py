@@ -7,10 +7,96 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from joblib import load
+import folium
+
 
 
 
 STATIONS_PATH = Path("data/static/db_stations.csv")
+def plot_worst_stations_map(
+    df: pd.DataFrame,
+    top_n: int = 200,
+    out_html: str = "outputs/worst_stations_map.html"
+):
+    stations = load_station_lookup()
+
+    # Require coordinates
+    if "lat" not in stations.columns or "lon" not in stations.columns:
+        raise ValueError(
+            "Station lookup must include lat/lon columns. "
+            "Update load_station_lookup() to return lat/lon."
+        )
+
+    if stations["lat"].isna().all() or stations["lon"].isna().all():
+        raise ValueError(
+            "Station lookup CSV doesn't appear to include usable lat/lon values.\n"
+            "Ensure data/static/db_stations.csv has latitude/longitude columns."
+        )
+
+    # Compute worst stations
+    worst = (
+        df.groupby("station_id")["delay_minutes"]
+          .mean()
+          .reset_index()
+          .rename(columns={"delay_minutes": "avg_delay"})
+          .sort_values("avg_delay", ascending=False)
+          .head(top_n)
+    )
+
+    # Join names + coords
+    merged = worst.merge(stations, left_on="station_id", right_on="eva", how="left")
+    merged = merged.dropna(subset=["lat", "lon"]).copy()
+
+    if merged.empty:
+        raise ValueError(
+            "After joining station coords, no rows had lat/lon.\n"
+            "Check that station_id values match the 'eva' codes in your CSV."
+        )
+
+    out_path = Path(out_html)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    merged["lat"] = pd.to_numeric(merged["lat"], errors="coerce")
+    merged["lon"] = pd.to_numeric(merged["lon"], errors="coerce")
+    merged = merged.dropna(subset=["lat", "lon"]).copy()
+
+    # Center map
+    center_lat = float(merged["lat"].median())
+    center_lon = float(merged["lon"].median())
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
+
+    # Color scale (green -> red)
+    min_d = float(merged["avg_delay"].min())
+    max_d = float(merged["avg_delay"].max())
+    span = max(max_d - min_d, 1e-9)
+
+    def color_for(delay: float) -> str:
+        t = (delay - min_d) / span  # 0..1
+        r = int(255 * t)
+        g = int(255 * (1 - t))
+        return f"#{r:02x}{g:02x}00"
+
+    # Plot points
+    for _, r in merged.iterrows():
+        delay = float(r["avg_delay"])
+        name = r["name"] if pd.notna(r["name"]) else "Unknown"
+        sid = r["station_id"]
+
+        popup = f"{name} ({sid})<br>Avg delay: {delay:.2f} min"
+        col = color_for(delay)
+
+        folium.CircleMarker(
+            location=[float(r["lat"]), float(r["lon"])],
+            radius=6,
+            color=col,
+            fill=True,
+            fill_color=col,
+            fill_opacity=0.85,
+            popup=folium.Popup(popup, max_width=300),
+        ).add_to(m)
+
+    m.save(str(out_path))
+    print(f"Wrote interactive map: {out_path}")
 
 def load_station_lookup() -> pd.DataFrame:
     if not STATIONS_PATH.exists():
@@ -26,8 +112,13 @@ def load_station_lookup() -> pd.DataFrame:
 
     if "eva" not in df.columns or "name" not in df.columns:
         raise ValueError("Station file must contain 'eva' and 'name' columns")
+    df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
+    df["lon"] = pd.to_numeric(df["lon"], errors="coerce")
 
-    return df[["eva", "name"]].drop_duplicates()
+    
+    return df[["eva", "name", "lat", "lon"]].drop_duplicates()
+
+
 
 DATA_PATH = Path("data/processed/dataset.parquet")
 CLS_MODEL_PATH = Path("models/delay_classifier.joblib")
@@ -197,14 +288,21 @@ def plot_predicted_risk_by_hour(
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument(
-        "--plot",
-        required=True,
-        choices=[
-            "dist", "hour", "heatmap", "worst",
-            "pred_vs_actual", "risk_by_hour"
-        ],
-        help="Which visualization to show"
-    )
+    "--plot",
+    required=True,
+    choices=[
+        "dist", "hour", "heatmap", "worst",
+        "pred_vs_actual", "risk_by_hour",
+        "map_worst"
+    ],
+    help="Which visualization to show"
+)
+    ap.add_argument(
+    "--out",
+    default="outputs/worst_stations_map.html",
+    help="Output HTML file for map_worst"
+)
+
     ap.add_argument("--sample", type=int, default=200000, help="Rows to sample for plots (0=all)")
     ap.add_argument("--seed", type=int, default=42)
 
@@ -246,6 +344,10 @@ def main():
             is_weekend=args.is_weekend,
             station_delay_mean_20=args.station_delay_mean_20,
         )
+    
+    elif args.plot == "map_worst":
+        plot_worst_stations_map(df, top_n=args.top_n, out_html=args.out)
+
     else:
         raise RuntimeError("Unknown plot option")
 

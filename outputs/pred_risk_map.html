@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_e46d886a3158cdcbb1e5ccd53cf05818 {
+                #map_35b8c0e7b8c44ce6d1d61738f3d8986e {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -54,14 +54,14 @@
 <body>
     
     
-            <div class="folium-map" id="map_e46d886a3158cdcbb1e5ccd53cf05818" ></div>
+            <div class="folium-map" id="map_35b8c0e7b8c44ce6d1d61738f3d8986e" ></div>
         
 </body>
 <script>
     
     
-            var map_e46d886a3158cdcbb1e5ccd53cf05818 = L.map(
-                "map_e46d886a3158cdcbb1e5ccd53cf05818",
+            var map_35b8c0e7b8c44ce6d1d61738f3d8986e = L.map(
+                "map_35b8c0e7b8c44ce6d1d61738f3d8986e",
                 {
                     center: [52.52, 13.4],
                     crs: L.CRS.EPSG3857,
@@ -78,15 +78,15 @@
 
         
     
-            var tile_layer_da6da314382dd70d27f74f717e0acbf3 = L.tileLayer(
-                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            var tile_layer_d524c8f7380db8634233c55b3f4fc003 = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
                 {
   "minZoom": 0,
-  "maxZoom": 19,
-  "maxNativeZoom": 19,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
   "noWrap": false,
-  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
-  "subdomains": "abc",
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
   "detectRetina": false,
   "tms": false,
   "opacity": 1,
@@ -95,27 +95,27 @@
             );
         
     
-            tile_layer_da6da314382dd70d27f74f717e0acbf3.addTo(map_e46d886a3158cdcbb1e5ccd53cf05818);
+            tile_layer_d524c8f7380db8634233c55b3f4fc003.addTo(map_35b8c0e7b8c44ce6d1d61738f3d8986e);
         
     
-            var circle_marker_2abfac2809da2c1115b541b124cf8b61 = L.circleMarker(
+            var circle_marker_5af190b7038ae60f55d38bafc1cdffd1 = L.circleMarker(
                 [52.52, 13.4],
-                {"bubblingMouseEvents": true, "color": "#00ff00", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#00ff00", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
-            ).addTo(map_e46d886a3158cdcbb1e5ccd53cf05818);
+                {"bubblingMouseEvents": true, "color": "#3388ff", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#3388ff", "fillOpacity": 0.7, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 4.001795826602104, "stroke": true, "weight": 3}
+            ).addTo(map_35b8c0e7b8c44ce6d1d61738f3d8986e);
         
     
-        var popup_3100633530112f2abbd7ddfe86b9f31d = L.popup({
-  "maxWidth": 300,
+        var popup_5126ecb89adaa933b19c629e29cfffad = L.popup({
+  "maxWidth": "100%",
 });
 
         
             
-                var html_f817b12bc28d5a6d3eb5c74916490b06 = $(`<div id="html_f817b12bc28d5a6d3eb5c74916490b06" style="width: 100.0%; height: 100.0%;">Example Station (0370014)<br>Avg delay: 0.00 min</div>`)[0];
-                popup_3100633530112f2abbd7ddfe86b9f31d.setContent(html_f817b12bc28d5a6d3eb5c74916490b06);
+                var html_1d7d379bcfc28459809135ece7fb4498 = $(`<div id="html_1d7d379bcfc28459809135ece7fb4498" style="width: 100.0%; height: 100.0%;">Example Station<br>EVA: 0370014<br>P(delay ≥ 5): 0.00</div>`)[0];
+                popup_5126ecb89adaa933b19c629e29cfffad.setContent(html_1d7d379bcfc28459809135ece7fb4498);
             
         
 
-        circle_marker_2abfac2809da2c1115b541b124cf8b61.bindPopup(popup_3100633530112f2abbd7ddfe86b9f31d)
+        circle_marker_5af190b7038ae60f55d38bafc1cdffd1.bindPopup(popup_5126ecb89adaa933b19c629e29cfffad)
         ;
 
         

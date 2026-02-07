@@ -10,9 +10,127 @@ from joblib import load
 import folium
 
 
-
+from joblib import load
+import numpy as np
+import pandas as pd
+import folium
+from pathlib import Path
 
 STATIONS_PATH = Path("data/static/db_stations.csv")
+
+CLS_MODEL_PATH = Path("models/delay_classifier.joblib")
+
+def plot_predicted_risk_map(
+    df: pd.DataFrame,
+    out_html: str,
+    month: int = 7,
+    dow: int = 0,
+    is_weekend: int = 0,
+    hour: int = 8,
+    top_n: int = 200,
+):
+    # -----------------------------
+    # Aggregate station baselines
+    # -----------------------------
+    station_stats = (
+        df.groupby("station_id", as_index=False)
+          .agg(
+              station_delay_mean_20=("station_delay_mean_20", "mean"),
+              station_delay_last_60min=("station_delay_last_60min", "mean"),
+              n=("delay_minutes", "size"),
+          )
+          .sort_values("n", ascending=False)
+          .head(top_n)
+          .copy()
+    )
+
+    # Normalize EVA codes
+    station_stats["station_id"] = (
+        station_stats["station_id"]
+        .astype(str)
+        .str.strip()
+        .str.zfill(7)
+    )
+
+    # -----------------------------
+    # Load station metadata
+    # -----------------------------
+    stations = load_station_lookup()
+
+    merged = station_stats.merge(
+        stations, left_on="station_id", right_on="eva", how="left"
+    )
+
+    merged["lat"] = pd.to_numeric(merged["lat"], errors="coerce")
+    merged["lon"] = pd.to_numeric(merged["lon"], errors="coerce")
+    merged = merged.dropna(subset=["lat", "lon"]).copy()
+    print("Sample station_stats station_id:", station_stats["station_id"].head(5).tolist())
+    print("Sample stations eva:", stations["eva"].head(5).tolist())
+
+    print("Matched station names:", int(merged["name"].notna().sum()))
+    print("Matched coords:", int(merged["lat"].notna().sum()))
+
+    print(f"Stations before coord drop: {len(station_stats)}")
+    print(f"Stations after coord drop : {len(merged)}")
+
+    if merged.empty:
+        raise ValueError("No stations with coordinates after merge")
+
+    # -----------------------------
+    # Build ML input frame
+    # -----------------------------
+    X = pd.DataFrame({
+        "station_id": merged["station_id"],
+        "category": "",
+        "train_id": "",
+        "hour": hour,
+        "dow": dow,
+        "month": month,
+        "is_weekend": is_weekend,
+        "station_delay_mean_20": merged["station_delay_mean_20"],
+        "station_delay_last_60min": merged["station_delay_last_60min"],
+    })
+
+    cls = load(CLS_MODEL_PATH)
+    merged["pred_risk"] = cls.predict_proba(X)[:, 1]
+
+    # -----------------------------
+    # Build map
+    # -----------------------------
+    center_lat = float(merged["lat"].median())
+    center_lon = float(merged["lon"].median())
+
+    m = folium.Map(
+        location=[center_lat, center_lon],
+        zoom_start=6,
+        tiles="cartodbpositron"
+    )
+
+    for _, r in merged.iterrows():
+        radius = 4 + 12 * r["pred_risk"]
+        popup = (
+            f"{r.get('name', '(unknown)')}<br>"
+            f"EVA: {r['station_id']}<br>"
+            f"P(delay ≥ 5): {r['pred_risk']:.2f}"
+        )
+
+        folium.CircleMarker(
+            location=[r["lat"], r["lon"]],
+            radius=radius,
+            fill=True,
+            fill_opacity=0.7,
+            popup=popup,
+        ).add_to(m)
+
+    Path(out_html).parent.mkdir(parents=True, exist_ok=True)
+    m.save(out_html)
+
+    print(f"Wrote ML predicted-risk map: {out_html}")
+    # station metadata (eva,name,lat,lon)
+    print(f"Wrote ML predicted-risk map: {out_html}")
+
+
+
 def plot_worst_stations_map(
     df: pd.DataFrame,
     top_n: int = 200,
@@ -106,16 +224,15 @@ def load_station_lookup() -> pd.DataFrame:
         )
 
     df = pd.read_csv(STATIONS_PATH, dtype=str)
-
-    # Normalize column names
     df.columns = [c.lower() for c in df.columns]
 
     if "eva" not in df.columns or "name" not in df.columns:
         raise ValueError("Station file must contain 'eva' and 'name' columns")
+
+    df["eva"] = df["eva"].astype(str).str.strip().str.zfill(7)
     df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
     df["lon"] = pd.to_numeric(df["lon"], errors="coerce")
 
-    
     return df[["eva", "name", "lat", "lon"]].drop_duplicates()
 
 
@@ -248,6 +365,7 @@ def plot_predicted_risk_by_hour(
     dow: int,
     is_weekend: int,
     station_delay_mean_20: float,
+    station_delay_last_60min: float,
     category: str = "UNKNOWN",
     train_id: str = "UNKNOWN",
 ):
@@ -267,6 +385,8 @@ def plot_predicted_risk_by_hour(
             "month": float(month),
             "is_weekend": float(is_weekend),
             "station_delay_mean_20": float(station_delay_mean_20),
+
+            "station_delay_last_60min": float(station_delay_last_60min),
         })
     X = pd.DataFrame(rows)
 
@@ -287,26 +407,28 @@ def plot_predicted_risk_by_hour(
 # ----------------------------
 def main():
     ap = argparse.ArgumentParser()
+
     ap.add_argument(
-    "--plot",
-    required=True,
-    choices=[
-        "dist", "hour", "heatmap", "worst",
-        "pred_vs_actual", "risk_by_hour",
-        "map_worst"
-    ],
-    help="Which visualization to show"
-)
+        "--plot",
+        required=True,
+        choices=[
+            "dist", "hour", "heatmap", "worst",
+            "pred_vs_actual", "risk_by_hour",
+            "map_worst", "map_pred_risk",
+        ],
+        help="Which visualization to show",
+    )
+
     ap.add_argument(
-    "--out",
-    default="outputs/worst_stations_map.html",
-    help="Output HTML file for map_worst"
-)
+        "--out",
+        default="outputs/worst_stations_map.html",
+        help="Output HTML file for map plots",
+    )
 
     ap.add_argument("--sample", type=int, default=200000, help="Rows to sample for plots (0=all)")
     ap.add_argument("--seed", type=int, default=42)
 
-    # risk_by_hour parameters
+    # scenario params used by risk_by_hour + map_pred_risk
     ap.add_argument("--station-id", default="0370014")
     ap.add_argument("--category", default="UNKNOWN")
     ap.add_argument("--train-id", default="UNKNOWN")
@@ -314,6 +436,7 @@ def main():
     ap.add_argument("--dow", type=int, default=0)
     ap.add_argument("--is-weekend", type=int, default=0)
     ap.add_argument("--station-delay-mean-20", type=float, default=3.0)
+    ap.add_argument("--station-delay-last-60min", type=float, default=0.0)
 
     # misc
     ap.add_argument("--top-n", type=int, default=15)
@@ -343,13 +466,24 @@ def main():
             dow=args.dow,
             is_weekend=args.is_weekend,
             station_delay_mean_20=args.station_delay_mean_20,
+            station_delay_last_60min=args.station_delay_last_60min,
         )
-    
     elif args.plot == "map_worst":
         plot_worst_stations_map(df, top_n=args.top_n, out_html=args.out)
+    elif args.plot == "map_pred_risk":
+        plot_predicted_risk_map(
+            df,
+            out_html=args.out,
+            month=args.month,
+            dow=args.dow,
+            is_weekend=args.is_weekend,
+            hour=8,
+            top_n=args.top_n,
+        )
 
     else:
         raise RuntimeError("Unknown plot option")
+
 
 if __name__ == "__main__":
     main()

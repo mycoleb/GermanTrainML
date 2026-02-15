@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_e46d886a3158cdcbb1e5ccd53cf05818 {
+                #map_03c8dfb5cdc083f8fe55cd804e8c6a74 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -54,16 +54,16 @@
 <body>
     
     
-            <div class="folium-map" id="map_e46d886a3158cdcbb1e5ccd53cf05818" ></div>
+            <div class="folium-map" id="map_03c8dfb5cdc083f8fe55cd804e8c6a74" ></div>
         
 </body>
 <script>
     
     
-            var map_e46d886a3158cdcbb1e5ccd53cf05818 = L.map(
-                "map_e46d886a3158cdcbb1e5ccd53cf05818",
+            var map_03c8dfb5cdc083f8fe55cd804e8c6a74 = L.map(
+                "map_03c8dfb5cdc083f8fe55cd804e8c6a74",
                 {
-                    center: [52.52, 13.4],
+                    center: [51.731139, 12.4639415],
                     crs: L.CRS.EPSG3857,
                     ...{
   "zoom": 6,
@@ -78,15 +78,15 @@
 
         
     
-            var tile_layer_da6da314382dd70d27f74f717e0acbf3 = L.tileLayer(
-                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            var tile_layer_dffa9a6efe15e8060306e74afde24a97 = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
                 {
   "minZoom": 0,
-  "maxZoom": 19,
-  "maxNativeZoom": 19,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
   "noWrap": false,
-  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
-  "subdomains": "abc",
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
   "detectRetina": false,
   "tms": false,
   "opacity": 1,
@@ -95,27 +95,96 @@
             );
         
     
-            tile_layer_da6da314382dd70d27f74f717e0acbf3.addTo(map_e46d886a3158cdcbb1e5ccd53cf05818);
+            tile_layer_dffa9a6efe15e8060306e74afde24a97.addTo(map_03c8dfb5cdc083f8fe55cd804e8c6a74);
         
     
-            var circle_marker_2abfac2809da2c1115b541b124cf8b61 = L.circleMarker(
-                [52.52, 13.4],
-                {"bubblingMouseEvents": true, "color": "#00ff00", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#00ff00", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
-            ).addTo(map_e46d886a3158cdcbb1e5ccd53cf05818);
+            var circle_marker_d8e04f109a1d18e1750bdd0a80d8c3fe = L.circleMarker(
+                [48.140229, 11.558335],
+                {"bubblingMouseEvents": true, "color": "#ff0000", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ff0000", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_03c8dfb5cdc083f8fe55cd804e8c6a74);
         
     
-        var popup_3100633530112f2abbd7ddfe86b9f31d = L.popup({
+        var popup_87d63f04d66fa2d169e502af9b80d19c = L.popup({
   "maxWidth": 300,
 });
 
         
             
-                var html_f817b12bc28d5a6d3eb5c74916490b06 = $(`<div id="html_f817b12bc28d5a6d3eb5c74916490b06" style="width: 100.0%; height: 100.0%;">Example Station (0370014)<br>Avg delay: 0.00 min</div>`)[0];
-                popup_3100633530112f2abbd7ddfe86b9f31d.setContent(html_f817b12bc28d5a6d3eb5c74916490b06);
+                var html_9a0637f440e68f06d884911dfedcb70e = $(`<div id="html_9a0637f440e68f06d884911dfedcb70e" style="width: 100.0%; height: 100.0%;">München Hbf (08000261)<br>Avg delay: 11.91 min<br>N: 1197</div>`)[0];
+                popup_87d63f04d66fa2d169e502af9b80d19c.setContent(html_9a0637f440e68f06d884911dfedcb70e);
             
         
 
-        circle_marker_2abfac2809da2c1115b541b124cf8b61.bindPopup(popup_3100633530112f2abbd7ddfe86b9f31d)
+        circle_marker_d8e04f109a1d18e1750bdd0a80d8c3fe.bindPopup(popup_87d63f04d66fa2d169e502af9b80d19c)
+        ;
+
+        
+    
+    
+            var circle_marker_ea76e9d7ef8b3b56a2c5c27a3533adca = L.circleMarker(
+                [52.525589, 13.369548],
+                {"bubblingMouseEvents": true, "color": "#ac5200", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ac5200", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_03c8dfb5cdc083f8fe55cd804e8c6a74);
+        
+    
+        var popup_7202cd8b78cfe9098c60351f9ff04430 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_a096958a49bfe6e80d0f92564e06cca0 = $(`<div id="html_a096958a49bfe6e80d0f92564e06cca0" style="width: 100.0%; height: 100.0%;">Berlin Hbf (08000105)<br>Avg delay: 8.08 min<br>N: 2464</div>`)[0];
+                popup_7202cd8b78cfe9098c60351f9ff04430.setContent(html_a096958a49bfe6e80d0f92564e06cca0);
+            
+        
+
+        circle_marker_ea76e9d7ef8b3b56a2c5c27a3533adca.bindPopup(popup_7202cd8b78cfe9098c60351f9ff04430)
+        ;
+
+        
+    
+    
+            var circle_marker_d9b6c8eb7bd952e032ae98b986a60cd8 = L.circleMarker(
+                [50.942278, 6.958281],
+                {"bubblingMouseEvents": true, "color": "#7f7f00", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#7f7f00", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_03c8dfb5cdc083f8fe55cd804e8c6a74);
+        
+    
+        var popup_aa485538295634d035e6691b95e56653 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_20ebaf7e34d4448e71db5895fb40c81b = $(`<div id="html_20ebaf7e34d4448e71db5895fb40c81b" style="width: 100.0%; height: 100.0%;">Köln Hbf (08000207)<br>Avg delay: 5.96 min<br>N: 4642</div>`)[0];
+                popup_aa485538295634d035e6691b95e56653.setContent(html_20ebaf7e34d4448e71db5895fb40c81b);
+            
+        
+
+        circle_marker_d9b6c8eb7bd952e032ae98b986a60cd8.bindPopup(popup_aa485538295634d035e6691b95e56653)
+        ;
+
+        
+    
+    
+            var circle_marker_78a344edd1c5143ccba8a8d9ff8047dd = L.circleMarker(
+                [52.52, 13.4],
+                {"bubblingMouseEvents": true, "color": "#00ff00", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#00ff00", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_03c8dfb5cdc083f8fe55cd804e8c6a74);
+        
+    
+        var popup_9b2ea95b10b41b69dbb8cf3565124a7b = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_8fda6c53aca702df9d82a854d310f77a = $(`<div id="html_8fda6c53aca702df9d82a854d310f77a" style="width: 100.0%; height: 100.0%;">Example Station (00370014)<br>Avg delay: 0.00 min<br>N: 292</div>`)[0];
+                popup_9b2ea95b10b41b69dbb8cf3565124a7b.setContent(html_8fda6c53aca702df9d82a854d310f77a);
+            
+        
+
+        circle_marker_78a344edd1c5143ccba8a8d9ff8047dd.bindPopup(popup_9b2ea95b10b41b69dbb8cf3565124a7b)
         ;
 
         

@@ -130,63 +130,53 @@ def plot_predicted_risk_map(
     print(f"Wrote ML predicted-risk map: {out_html}")
 
 
-
+def color_for(delay):
+    t = (delay - min_d) / span  # normalize 0..1
+    # red gradient
+    r = int(255 * t)
+    g = int(80 * (1 - t))
+    b = int(80 * (1 - t))
+    return f"#{r:02x}{g:02x}{b:02x}"
 def plot_worst_stations_map(
     df: pd.DataFrame,
     top_n: int = 200,
-    out_html: str = "outputs/worst_stations_map.html"
+    out_html: str = "outputs/worst_map.html",
 ):
+    """
+    Interactive HTML map of worst stations by average delay (historical).
+    Requires data/static/db_stations.csv with columns: eva,name,lat,lon
+    """
     stations = load_station_lookup()
 
-    # Require coordinates
-    if "lat" not in stations.columns or "lon" not in stations.columns:
-        raise ValueError(
-            "Station lookup must include lat/lon columns. "
-            "Update load_station_lookup() to return lat/lon."
-        )
-
-    if stations["lat"].isna().all() or stations["lon"].isna().all():
-        raise ValueError(
-            "Station lookup CSV doesn't appear to include usable lat/lon values.\n"
-            "Ensure data/static/db_stations.csv has latitude/longitude columns."
-        )
-
-    # Compute worst stations
-    worst = (
-        df.groupby("station_id")["delay_minutes"]
-          .mean()
-          .reset_index()
-          .rename(columns={"delay_minutes": "avg_delay"})
-          .sort_values("avg_delay", ascending=False)
+    station_stats = (
+        df.groupby("station_id", as_index=False)
+          .agg(avg_delay=("delay_minutes", "mean"), n=("delay_minutes", "size"))
+          .sort_values(["avg_delay", "n"], ascending=[False, False])
           .head(top_n)
+          .copy()
     )
 
-    # Join names + coords
-    merged = worst.merge(stations, left_on="station_id", right_on="eva", how="left")
-    merged = merged.dropna(subset=["lat", "lon"]).copy()
+    # Normalize dataset station_id to 8 digits (your dataset uses e.g. 08000207)
+    station_stats["station_id"] = station_stats["station_id"].astype(str).str.strip().str.zfill(8)
 
-    if merged.empty:
-        raise ValueError(
-            "After joining station coords, no rows had lat/lon.\n"
-            "Check that station_id values match the 'eva' codes in your CSV."
-        )
+    # Build an 8-digit EVA key from station lookup (eva often 7 digits like 8000207)
+    stations = stations.copy()
+    stations["eva"] = stations["eva"].astype(str).str.strip()
+    stations["eva8"] = stations["eva"].str.lstrip("0").str.zfill(7).str.zfill(8)  # 8000207 -> 08000207
 
-    out_path = Path(out_html)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    merged = station_stats.merge(stations, left_on="station_id", right_on="eva8", how="left")
 
     merged["lat"] = pd.to_numeric(merged["lat"], errors="coerce")
     merged["lon"] = pd.to_numeric(merged["lon"], errors="coerce")
     merged = merged.dropna(subset=["lat", "lon"]).copy()
 
-    # Center map
-    center_lat = float(merged["lat"].median())
-    center_lon = float(merged["lon"].median())
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
+    if merged.empty:
+        raise ValueError("No stations with coordinates after merge. Check db_stations.csv and station_id formats.")
 
-    # Color scale (green -> red)
+    # Color scaling based on avg_delay (now merged exists)
     min_d = float(merged["avg_delay"].min())
     max_d = float(merged["avg_delay"].max())
-    span = max(max_d - min_d, 1e-9)
+    span = max(max_d - min_d, 1e-6)
 
     def color_for(delay: float) -> str:
         t = (delay - min_d) / span  # 0..1
@@ -194,13 +184,17 @@ def plot_worst_stations_map(
         g = int(255 * (1 - t))
         return f"#{r:02x}{g:02x}00"
 
-    # Plot points
+    center_lat = float(merged["lat"].median())
+    center_lon = float(merged["lon"].median())
+
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=6, tiles="cartodbpositron")
+
     for _, r in merged.iterrows():
         delay = float(r["avg_delay"])
         name = r["name"] if pd.notna(r["name"]) else "Unknown"
         sid = r["station_id"]
 
-        popup = f"{name} ({sid})<br>Avg delay: {delay:.2f} min"
+        popup = f"{name} ({sid})<br>Avg delay: {delay:.2f} min<br>N: {int(r['n'])}"
         col = color_for(delay)
 
         folium.CircleMarker(
@@ -213,9 +207,9 @@ def plot_worst_stations_map(
             popup=folium.Popup(popup, max_width=300),
         ).add_to(m)
 
-    m.save(str(out_path))
-    print(f"Wrote interactive map: {out_path}")
-
+    Path(out_html).parent.mkdir(parents=True, exist_ok=True)
+    m.save(out_html)
+    print(f"Wrote interactive map: {out_html}")
 def load_station_lookup() -> pd.DataFrame:
     if not STATIONS_PATH.exists():
         raise FileNotFoundError(
